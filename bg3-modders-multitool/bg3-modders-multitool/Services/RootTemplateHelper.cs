@@ -37,7 +37,7 @@ namespace bg3_modders_multitool.Services
         public RootTemplateHelper(ViewModels.GameObjectViewModel gameObjectViewModel)
         {
             GeneralHelper.WriteToConsole($"Loading GameObjects...\n");
-            Sner();
+            ReadLsxToDatasource();
             //var start = DateTime.Now;
             //LoadRootTemplates().ContinueWith(delegate {
             //    if(Loaded)
