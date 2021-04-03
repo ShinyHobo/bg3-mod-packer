@@ -7,6 +7,7 @@ namespace bg3_modders_multitool.Services
     using bg3_modders_multitool.Enums;
     using bg3_modders_multitool.Models;
     using bg3_modders_multitool.Models.Races;
+    using HtmlAgilityPack;
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
@@ -14,6 +15,8 @@ namespace bg3_modders_multitool.Services
     using System.Linq;
     using System.Threading.Tasks;
     using System.Xml;
+    using System.Xml.Linq;
+    using System.Xml.XPath;
 
     public class RootTemplateHelper
     {
@@ -22,6 +25,7 @@ namespace bg3_modders_multitool.Services
         private readonly string[] Paks = { "Shared","Gustav" };
         private readonly string[] ExcludedData = { "BloodTypes","Data","ItemColor","ItemProgressionNames","ItemProgressionVisuals", "XPData"}; // Not stat structures
         private bool Loaded = false;
+
         public List<GameObjectType> GameObjectTypes { get; private set; } = new List<GameObjectType>();
         public List<GameObject> FlatGameObjects { get; private set; } = new List<GameObject>();
         public List<Translation> Translations { get; private set; } = new List<Translation>();
@@ -33,19 +37,20 @@ namespace bg3_modders_multitool.Services
         public RootTemplateHelper(ViewModels.GameObjectViewModel gameObjectViewModel)
         {
             GeneralHelper.WriteToConsole($"Loading GameObjects...\n");
-            var start = DateTime.Now;
-            LoadRootTemplates().ContinueWith(delegate {
-                if(Loaded)
-                {
-                    var timePassed = DateTime.Now.Subtract(start).TotalSeconds;
-                    GeneralHelper.WriteToConsole($"GameObjects loaded in {timePassed} seconds.\n");
-                    gameObjectViewModel.Loaded = true;
-                }
-                else
-                {
-                    GeneralHelper.WriteToConsole($"GameObjects loading cancelled.\n");
-                }
-            });
+            Sner();
+            //var start = DateTime.Now;
+            //LoadRootTemplates().ContinueWith(delegate {
+            //    if(Loaded)
+            //    {
+            //        var timePassed = DateTime.Now.Subtract(start).TotalSeconds;
+            //        GeneralHelper.WriteToConsole($"GameObjects loaded in {timePassed} seconds.\n");
+            //        gameObjectViewModel.Loaded = true;
+            //    }
+            //    else
+            //    {
+            //        GeneralHelper.WriteToConsole($"GameObjects loading cancelled.\n");
+            //    }
+            //});
         }
 
         /// <summary>
@@ -376,6 +381,55 @@ namespace bg3_modders_multitool.Services
                 return true;
             }
             return false;
+        }
+
+        private async void ReadLsxToDatasource()
+        {
+            var fileList = await PakUnpackHelper.DecompressAllConvertableFiles();
+            var defaultPath = FileHelper.GetPath("");
+            System.Data.DataSet ds = new System.Data.DataSet();
+            foreach (var file in fileList)
+            {
+                if(File.Exists(defaultPath + file))
+                {
+                    var doc = new HtmlDocument();
+                    doc.Load(defaultPath + file);
+
+                    var nodes = doc.DocumentNode.SelectNodes("//node");
+                    if (nodes != null)
+                    {
+                        foreach (HtmlNode node in nodes)
+                        {
+                            node.Name = node.Id;
+                        }
+                    }
+
+                    nodes = doc.DocumentNode.SelectNodes("//*[not(@id)]");
+                    if (nodes != null)
+                    {
+                        foreach (HtmlNode node in nodes)
+                        {
+                            if(node.Name != "save" && node.Name != "version")
+                                node.Name = node.ParentNode.Name + "-" + node.Name;
+                        }
+                    }
+
+                    nodes = doc.DocumentNode.SelectNodes("//value");
+                    if (nodes != null)
+                    {
+                        foreach (HtmlNode node in nodes)
+                        {
+                                node.Name = node.ParentNode.Name + "-" + node.Name + "-" + node.Id;
+                        }
+                    }
+
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(doc.DocumentNode.InnerHtml);
+                    ds.ReadXml(new XmlNodeReader(xmlDoc));
+                    var sner = "";
+                }
+                
+            }
         }
 
         /// <summary>
